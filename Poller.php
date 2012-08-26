@@ -32,10 +32,28 @@ use \RuntimeException;
 
 final class Poller
 {
+		// Instance of the poller
+		private static $_instance = null;
+		
 		// List of all connections to monitor
 		private $a_connList  = array ();
 		private $a_connSocks = array ();
 		
+		// Returns instance of this class
+		public static function getInstance ()
+		{
+				if (empty (self ::  $_instance))
+				{
+						self ::  $_instance = new Poller ();
+				}
+				
+				return self ::  $_instance;
+		}
+		
+		// Allow no creation of this class
+		private function __construct ()
+		{
+		}		
 		
 		public function hasConnection (Connection $o_Conn)
 		{
@@ -47,9 +65,12 @@ final class Poller
 				return count ($this -> a_connList);
 		}
 		
-		public function addConnection ($r_Socket, Connection $o_Conn)
+		public function addConnection ($r_Socket, $o_Conn)
 		{
-				if (!is_resource ($r_Socket))
+				if (!$o_Conn instanceof Connection && !$o_Conn instanceof Listening)
+				{
+						throw new InvalidArgumentException ('Poller :: addConnection () expects parameter 2 to be an instance of Connection or Listening.');
+				} else if (!is_resource ($r_Socket))
 				{
 						throw new InvalidArgumentException ('Poller :: addConnection () expects parameter 1 to be a valid resource.');
 				} else if (in_array ($o_Conn, $this -> a_connList))
@@ -64,8 +85,13 @@ final class Poller
 				return true;
 		}
 		
-		public function removeConnection (Connection $o_Conn)
+		public function removeConnection ($o_Conn)
 		{
+				if (!$o_Conn instanceof Connection && !$o_Conn instanceof Listening)
+				{
+						throw new InvalidArgumentException ('Poller :: addConnection () expects parameter 2 to be an instance of Connection or Listening.');
+				} 
+				
 				if (!in_array ($o_Conn, $this -> a_connList))
 				{
 						return true;
@@ -145,12 +171,13 @@ final class Poller
 				{
 						foreach ($a_readSocks as $r_Socket)
 						{
-								$o_Connection = $this -> a_connSocks [intval ($r_Socket)];
+								$o_Connection = $this -> a_connList [intval ($r_Socket)];
 								
 								switch ($o_Connection -> getStatus ())
 								{
 										case Status :: LISTENING:
-												// @todo
+												echo 'Accepting connection.' . PHP_EOL;
+												$o_Connection -> accept ();
 												break;
 												
 										case Status :: CONNECTED:
@@ -169,7 +196,7 @@ final class Poller
 				{
 						foreach ($a_writeSocks as $r_Socket)
 						{
-								$o_Connection = $this -> a_connSocks [intval ($r_Socket)];
+								$o_Connection = $this -> a_connList [intval ($r_Socket)];
 								
 								switch ($o_Connection -> getStatus ())
 								{
@@ -193,7 +220,7 @@ final class Poller
 				{
 						foreach ($a_exceptSocks as $r_Socket)
 						{
-								$o_Connection = $this -> a_connSocks [intval ($r_Socket)];
+								$o_Connection = $this -> a_connList [intval ($r_Socket)];
 								
 								switch ($o_Connection -> getStatus ())
 								{

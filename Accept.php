@@ -27,11 +27,22 @@
 */
 
 namespace Streams;
-abstract class Error
-{		
-		const CONNFAILED = 0;
-		const INITFAILED = 1;
-		const WRITEERR   = 2;
-		const READERR    = 3;
-		const ACCEPTERR  = 4;
+use \LogicException;
+use \InvalidArgumentException;
+
+class Accept extends Connection
+{
+		public function __construct ($r_Socket, $s_Address, $b_Secure)
+		{
+				// Separate port from address
+				$s_rAddress = substr ($s_Address, 0, strrpos ($s_Address, ':'));
+				$i_rAddress = substr ($s_Address, strpos ($s_Address, ':'));
+				
+				// Initiate connection object
+				parent :: __construct ($s_rAddress, $i_rAddress, null, $b_Secure);
+				
+				// Change properties.
+				$this -> r_Socket = $r_Socket;
+				$this -> i_Status = Status :: CONNECTED;
+		}
 }

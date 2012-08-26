@@ -30,15 +30,15 @@ namespace Streams;
 use \LogicException;
 use \InvalidArgumentException;
 
-final class Connection
+class Connection
 {
 		// Global constants
 		const CERT_FILE_PATH     = './';
 		const CONN_MAX_TIME      = 5;
 		
 		// Connection details
-		private $r_Socket        = null;
-		private $i_Status        = 0;
+		protected $r_Socket      = null;
+		protected $i_Status      = 0;
 		private $s_rAddress      = null;
 		private $s_rPort         = null;
 		private $b_Secure        = false;
@@ -50,7 +50,11 @@ final class Connection
 		private  $writeBuffer    = null;
 		
 		// Callbacks
-		private $a_Callbacks     = array ();
+		public  $onConnect       = null;
+		public  $onTerminate     = null;
+		public  $onRead          = null;
+		public  $onWrite         = null;
+		public  $onError         = null;
 		
 		// Create a new connection
 		public function __construct ($s_Address, $i_Port, $s_bindAddress = null, $b_Secure = false)
@@ -61,10 +65,10 @@ final class Connection
 						throw new InvalidArgumentException ('Address "' . $s_Address . ':' . $i_Port . '" could not be resolved or is invalid.');
 				}
 				
-				$this -> s_rAddress = (string) $s_Address;
-				$this -> i_rPort    = (int)    $i_Port;
-				$this -> s_bindTo   = (string) $s_bindAddress;
-				$this -> b_Secure   = (bool)   $b_Secure;
+				$this -> s_rAddress = $s_Address;
+				$this -> i_rPort    = $i_Port;
+				$this -> s_bindTo   = $s_bindAddress;
+				$this -> b_Secure   = $b_Secure;
 				
 				if ($this -> b_Secure)
 				{
@@ -101,6 +105,21 @@ final class Connection
 				$this -> writeBuffer = null;
 		}
 		
+		public function __get ($s_Member)
+		{
+				switch ($s_Member)
+				{
+						case 'readBuffer':
+								return $this -> readBuffer;
+								
+						case 'writeBuffer':
+								return $this -> writeBuffer;
+								
+						default:
+								throw new LogicException ('Acces to "' . $s_Member . '" is not allowed.');
+				}
+		}
+		
 		// Returns address
 		public function __toString ()
 		{
@@ -118,30 +137,7 @@ final class Connection
 		{
 				return $this -> i_Status;
 		}
-		
-		// Adds a callback that we can call when something happens
-		// Avaliable: onConnect, onTerminate, onWrite, onRead, onError
-		public function addCallback ($s_Callback, callable $c_Callback)
-		{
-				// Check if we know it.
-				$a_Known = array ('onConnect',
-				                  'onTerminate',
-								  'onWrite',
-								  'onRead',
-								  'onError'
-								 );
 				
-				
-				if (!in_array ($s_Callback, $a_Known))
-				{
-						throw new LogicException ('Callback "' . $s_Callback . '" is not known.');
-				}
-				
-				$this -> a_Callbacks [$s_Callback] = $c_Callback;
-				// Chaining.
-				return $this;
-		}
-		
 		// Returns whether the socket is connected or not
 		public function isConnected ()
 		{
@@ -167,7 +163,7 @@ final class Connection
 		}
 				
 		// Queries the remote machine to get it's address
-		public function remoteAddress ()
+		public function getRemoteAddress ()
 		{
 				if (!$this -> isConnected ())
 				{
@@ -178,7 +174,7 @@ final class Connection
 		}
 		
 		// Queries the local machine to get it's address
-		public function localAddress ()
+		public function getLocalAddress ()
 		{
 				if (!$this -> isConnected ())
 				{
@@ -207,7 +203,7 @@ final class Connection
 				
 				return true;
 		}
-		
+				
 		// Connects to the remote machine
 		public function connect ()
 		{
@@ -271,6 +267,9 @@ final class Connection
 				// Change blocking status.
 				stream_set_blocking ($this -> r_Socket, false);
 				$this -> i_Status = Status :: CONNECTING;
+				
+				// Insert to our poller object
+				Poller :: getInstance () -> addConnection ($this -> r_Socket, $this);
 				
 				return false;
 		}
@@ -365,18 +364,27 @@ final class Connection
 		// Private function to close the resource
 		private function _forceClose ()
 		{
+				if (!is_resource ($this -> r_Socket))
+				{
+						return;
+				}
+								
+				// Close the socket resource
 				stream_socket_shutdown ($this -> r_Socket, STREAM_SHUT_RDWR);
 				fclose                 ($this -> r_Socket);				
 				$this -> r_Socket        = null;
 				$this -> i_timeConnected = 0;
+				
+				// Remove from poller
+				Poller :: getInstance () -> removeConnection ($this); 
 		}
 		
 		// Attempts to callback to someone
 		private function _doCallback ($s_Event, array $a_Args = array ())
 		{
-				if (isset ($this -> a_Callbacks [$s_Event]) && is_callable ($this -> a_Callbacks [$s_Event]))
+				if (isset ($this -> $s_Event) && is_callable ($this -> $s_Event))
 				{
-						call_user_func_array ($this -> a_Callbacks [$s_Event], $a_Args);
+						call_user_func_array ($this -> $s_Event, $a_Args);
 				}
 				
 				return;

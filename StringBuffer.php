@@ -59,6 +59,14 @@ class StringBuffer
 				
 				return true;
 		}
+		
+		public function prependBuffer ($s_String)
+		{
+				$this -> s_Buffer  = $s_String .  $this -> s_Buffer;
+				$this -> i_Length += strlen ($s_String);
+				
+				return true;
+		}
 
 		public function hasBuffer ()
 		{
