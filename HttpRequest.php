@@ -55,8 +55,13 @@ class HttpRequest
 				return $conn;
 		}
 		
-		public static function doPost ($s_Site, $s_Page, array $a_Fields = array ())
+		public static function doPost ($s_Site, $s_Page = '/', array $a_Fields = array ())
 		{
+				if (count ($a_Fields) < 1)
+				{
+						return self :: doGet ($s_Site, $s_Page);
+				}
+				
 				$conn     = new HttpRequest ($s_Site, $s_Page);
 				$s_Fields = http_build_query ($a_Fields);
 				
