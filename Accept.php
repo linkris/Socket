@@ -44,5 +44,8 @@ class Accept extends Connection
 				// Change properties.
 				$this -> r_Socket = $r_Socket;
 				$this -> i_Status = Status :: CONNECTED;
+				
+				// Add socket to poller
+				Poller :: getInstance () -> addConnection ($r_Socket, $this);
 		}
 }

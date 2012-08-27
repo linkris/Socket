@@ -176,7 +176,6 @@ final class Poller
 								switch ($o_Connection -> getStatus ())
 								{
 										case Status :: LISTENING:
-												echo 'Accepting connection.' . PHP_EOL;
 												$o_Connection -> accept ();
 												break;
 												

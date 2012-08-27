@@ -51,6 +51,11 @@ class StringBuffer
 				return $this -> s_Buffer;
 		}
 		
+		public function toArray ()
+		{
+				return $this -> getLines ();
+		}
+		
 		// Adds one or more characters to the buffer
 		public function appendBuffer ($s_String)
 		{
@@ -76,6 +81,11 @@ class StringBuffer
 		public function hasLine ()
 		{
 				return stripos ($this -> s_Buffer, $this -> s_lineEnd);
+		}
+		
+		public function getSize ()
+		{
+				return $this -> i_Length;
 		}
 				
 		// Removes x amount of bytes from the beginning or end of the buffer
