@@ -196,6 +196,7 @@ class StringBuffer
 		* or false if it has none.
 		*
 		* @return string|false
+		*/
 		public function getLine ()
 		{
 				if (!$this -> hasLine ())
