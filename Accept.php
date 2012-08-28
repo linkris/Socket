@@ -32,6 +32,15 @@ use \InvalidArgumentException;
 
 class Accept extends Connection
 {
+		/**
+		* Constructor, changes the internal socket resource, sets the address and
+		* adds the connection to our main socket poller
+		*
+		* @param  resource $r_Socket  Socket that has been accepted
+		* @param  string   $s_Address Address of the peer that connected to us
+		* @param  bool     $b_Secure  Secure connection?
+		* @return void
+		*/
 		public function __construct ($r_Socket, $s_Address, $b_Secure)
 		{
 				// Separate port from address

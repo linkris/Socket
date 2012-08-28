@@ -32,23 +32,82 @@ use \InvalidArgumentException;
 
 class Listening
 {		
-		// Global constants
+		/**
+		* Constant holding the path to the ssl certificate used for connections
+		*
+		* @const string
+		*/
 		const CERT_FILE_PATH   ='./';
 		
-		// Stream details
-		private $r_Socket      = null;
-		private $i_Status      = 0;
+		/**
+		* Holds the stream resource created with stream_socket_server
+		*
+		* @var resource
+		*/
+		protected $r_Socket    = null;
+		
+		/**
+		* Current status of this socket.
+		* See Status.php
+		*
+		* @var int
+		*/
+		protected $i_Status    = 0;
+		
+		/**
+		* Local address we are bound to and listening on
+		*
+		* @var string
+		*/
 		private $s_lAddress    = null;
+		
+		/**
+		* Local port we are listening on
+		*
+		* @var int
+		*/
 		private $i_lPort       = 0;
+		
+		/**
+		* Timestamp we started listening
+		*
+		* @var int
+		*/
 		private $i_listenStart = 0;
+		
+		/**
+		* Amount of connections we have accepted
+		*
+		* @var int
+		*/
 		private $i_Accepted    = 0;
+		
+		/**
+		* Should clients identify themselves?
+		*
+		* @var bool
+		*/
 		private $b_Secure      = false;
 		
-		// Callbacks
+		/**
+		* Callbacks that this object supports
+		*
+		* @var callable
+		*/
 		public  $onAccept      = null;
 		public  $onTerminate   = null;
 		public  $onError       = null;
 		
+		/**
+		* Instantiates a new Listener object
+		*
+		* @param  int            $i_Port    Port to listen on, 0 for random
+		* @param  string         $s_Address Address to listen on, leave empty for all
+		* @param  bool           $b_Secure  Use SSL?
+		* @throws LogicException We want to use SSL but OpenSSL is not loaded
+		* @throws LogicException Certificate not found
+		* @return void
+		*/
 		public function __construct ($i_Port = 0, $s_Address = null, $b_Secure = false)
 		{
 				if ($b_Secure)
@@ -69,31 +128,74 @@ class Listening
 				$this -> b_Secure   = $b_Secure;
 		}
 		
+		/**
+		* Closes resource
+		*
+		* @return void
+		*/
+		public function __destruct ()
+		{
+				if (is_resource ($this -> r_Socket))
+				{
+						$this -> _forceClose ();
+				}
+		}
+		
+		/**
+		* Returns whether this socket is accepting connections
+		*
+		* @return bool
+		*/
 		public function isListening ()
 		{
 				return ($this -> i_Status == Status :: LISTENING);
 		}
 		
+		/**
+		* Returns current connection status
+		*
+		* @return int
+		*/
 		public function getStatus ()
 		{
 				return $this -> i_Status;
 		}
 		
+		/**
+		* Returns amount of connections accepted
+		*
+		* @return int
+		*/
 		public function getAcceptedCount ()
 		{
 				return $this -> i_Accepted;
 		}
 		
+		/**
+		* Returns timestamp when listening started
+		*
+		* @return int
+		*/
 		public function getListenStarted ()
 		{
 				return $this -> i_listenStart;
 		}
 		
+		/**
+		* Returns port we listen on
+		*
+		* @return int
+		*/
 		public function getListenPort ()
 		{
 				return $this -> i_lPort;
 		}
 		
+		/**
+		* Returns local address we are bound to
+		*
+		* @return string
+		*/
 		public function getLocalAddress ()
 		{
 				if (!$this -> isListening ())
@@ -104,7 +206,11 @@ class Listening
 				return stream_socket_get_name ($this -> r_Socket, false);
 		}
 		
-		// Start listening on the given port and address
+		/**
+		* Starts listening on the earlier given address and port
+		*
+		* @return bool
+		*/
 		public function listen ()
 		{
 				if ($this -> isListening ())
@@ -155,7 +261,11 @@ class Listening
 				return true;
 		}
 		
-		// Stop listening
+		/**
+		* Stops listening for connections
+		*
+		* @return true
+		*/
 		public function terminate ()
 		{
 				if (!$this -> isListening ())
@@ -172,7 +282,11 @@ class Listening
 				return true;
 		}
 		
-		// Accept an incoming connection and pass it on to the callback function
+		/**
+		* Accept an incoming connection and pass it on to the callback function
+		*
+		* @return bool
+		*/
 		public function accept ()
 		{
 				if (!$this -> isListening ())
@@ -205,7 +319,12 @@ class Listening
 				return true;
 		}
 		
-		// Private function to close the resource
+		/**
+		* Private function to close the resource
+		* and remove it from the stream poller
+		*
+		* @return void
+		*/
 		private function _forceClose ()
 		{
 				if (!is_resource ($this -> r_Socket))
@@ -223,7 +342,14 @@ class Listening
 				Poller :: getInstance () -> removeConnection ($this); 
 		}
 		
-		// Attempts to callback to someone
+		/**
+		* Private function to see if a callback has been set
+		* and if yes, call it
+		*
+		* @param string $s_Event Callback to call
+		* @param array  $a_Args  Arguments to pass along
+		* @return void
+		*/
 		private function _doCallback ($s_Event, array $a_Args = array ())
 		{
 				if (isset ($this -> $s_Event) && is_callable ($this -> $s_Event))

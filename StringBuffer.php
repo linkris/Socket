@@ -35,28 +35,52 @@ class StringBuffer
 		private $i_Length = 0;
 		private $s_lineEnd = "\n";
 		
+		/**
+		* Sets the default line delimiter
+		*
+		* @param  string $s_newEnding
+		* @return void
+		*/
 		public function setLineEnding ($s_newEnding)
 		{
 				$this -> s_lineEnd = (string) $s_newEnding;
 		}
 		
-		// (string) StringBuffer
+		/**
+		* Returns all of the buffer
+		*
+		* @return string
+		*/
 		public function __toString ()
 		{
 				return $this -> s_Buffer;
 		}
 		
+		/**
+		* Same as __toString ()
+		*/
 		public function toString ()
 		{
 				return $this -> s_Buffer;
 		}
 		
+		/**
+		* Returns an array of lines in the buffer
+		*
+		* @return array|false
+		*/
 		public function toArray ()
 		{
 				return $this -> getLines ();
 		}
 		
-		// Adds one or more characters to the buffer
+		
+		/**
+		* Appends the buffer with data
+		*
+		* @param string $s_String
+		* @return bool
+		*/
 		public function appendBuffer ($s_String)
 		{
 				$this -> s_Buffer .= (string) $s_String;
@@ -65,6 +89,12 @@ class StringBuffer
 				return true;
 		}
 		
+		/**
+		* Prepends the buffer with data
+		*
+		* @pararm string $s_String
+		* @return true
+		*/
 		public function prependBuffer ($s_String)
 		{
 				$this -> s_Buffer  = $s_String .  $this -> s_Buffer;
@@ -73,22 +103,44 @@ class StringBuffer
 				return true;
 		}
 
+		/**
+		* Returns bool whether the buffer is filled
+		*
+		* @return bool
+		*/
 		public function hasBuffer ()
 		{
 				return ($this -> i_Length > 0);
 		}
 		
+		/**
+		* Returns bool whether the buffer has atleast one line
+		*
+		* @return bool
+		*/
 		public function hasLine ()
 		{
 				return stripos ($this -> s_Buffer, $this -> s_lineEnd);
 		}
 		
+		/**
+		* Returns the size in bytes of the buffer
+		*
+		* @return int
+		*/
 		public function getSize ()
 		{
 				return $this -> i_Length;
 		}
 				
-		// Removes x amount of bytes from the beginning or end of the buffer
+		/**
+		* Removes a defined length of bytes from the beginning or end of the buffer
+		*
+		* @param  int $i_Length Length to remove
+		* @param  bool $b_Prepend Remove from beginning or end?
+		* @throws InvalidArgumentException Length is negative
+		* @return true
+		*/
 		public function removeLength ($i_Length, $b_Prepend = true)
 		{
 				if ($i_Length < 0)
@@ -116,13 +168,21 @@ class StringBuffer
 				return true;
 		}
 		
-		// Returns all of the buffer.
+		/**
+		* Returns all of the buffer, without removing it
+		*
+		* @return string
+		*/
 		public function getBuffer ()
 		{
 				return $this -> s_Buffer;
 		}
 		
-		// Clears buffer
+		/**
+		* Clears all content of the buffer
+		*
+		* @return true
+		*/
 		public function flushBuffer ()
 		{
 				$this -> s_Buffer = null;
@@ -131,8 +191,11 @@ class StringBuffer
 				return true;
 		}
 		
-		// Returns one line from the buffer
-		// or false if it has none.
+		/**
+		* Returns one line from the buffer
+		* or false if it has none.
+		*
+		* @return string|false
 		public function getLine ()
 		{
 				if (!$this -> hasLine ())
@@ -148,8 +211,12 @@ class StringBuffer
 				return $s_theLine;
 		}
 		
-		// Returns as many lines from the buffer as possible
-		// as an array
+		/**
+		* Returns as many lines from the buffer as possible
+		* as an array, or false if it has none.
+	    *
+		* @return array|false
+		*/
 		public function getLines ()
 		{
 				if (!$this -> hasLine ())

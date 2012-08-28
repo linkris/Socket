@@ -32,110 +32,209 @@ use \InvalidArgumentException;
 
 class HttpRequest
 {
-		private $o_Connection = null;
-		private $a_Headers    = null;
-		private $s_Body       = null;
-		private $s_Site       = null;
-		private $s_Page       = null;
+		/**
+		* Holds the connection object used to connect to the webpage
+		*
+		* @var object
+		*/
+		private $o_Stream  = null;
 		
-		public  $onSuccess    = null;
-		public  $onFailure    = null;
+		/**
+		* Contains data about who we are about to connect to
+		*
+		* @var array
+		*/
+		private $a_Address = array ();
 		
-		public static function doGet ($s_Site, $s_Page = '')
+		/**
+		* An array of headers to be sent when connected
+		*
+		* @var array
+		*/
+		private $a_Headers = array ();
+		
+		/**
+		* Optional body for the request (POST variables)
+		*
+		* @var array
+		*/
+		private $s_Body    = null;
+		
+		/**
+		* Callbacks triggered when the page was retrieved,
+		* or when something bad happened
+		*
+		* @var callable
+		*/
+		public $onSucess   = null;
+		public $onFailure  = null;
+		
+		/**
+		* Static routine that creates a new request and sets the headers appropriately
+		*
+		* @param  string $s_Domain Domain where the page lives
+		* @param  string $s_Page   Page we want, can be left blank
+		* @return object
+		*/
+		public static function doGet ($s_Domain, $s_Page = '/')
 		{
-				$conn = new HttpRequest ($s_Site, $s_Page);
+				$o_Http = new HttpRequest ($s_Domain, $s_Page);
 				
-				// Fill headers..
-				$conn -> a_Headers [] = "GET /" . $s_Page . " HTTP/1.1\r\n";
-				$conn -> a_Headers [] = "Host: " . $s_Site . "\r\n";
-				$conn -> a_Headers [] = "Connection: close\r\n";
-				$conn -> a_Headers [] = "\r\n";
-				
-				// Return object
-				return $conn;
+				/**
+				* Build list of headers
+				*/
+				$o_Http -> a_Headers [] = 'GET ' . $s_Page . ' HTTP/1.1';
+				$o_Http -> a_Headers [] = 'Host: ' . $s_Domain;
+				$o_Http -> a_Headers [] = 'Connection: close';
+		
+				return $o_Http;
 		}
 		
-		public static function doPost ($s_Site, $s_Page = '/', array $a_Fields = array ())
+		/**
+		* Static routine that creates a new post request and sets the headers appropriately
+		*
+		* @param  string $s_Domain Domain where the page lives
+		* @param  string $s_Page   Page that we want to POST to
+		* @param  array $a_Variables Variables to be posted
+		* @return object
+		*/
+		public static function doPost ($s_Domain, $s_Page, array $a_Variables)
 		{
-				if (count ($a_Fields) < 1)
-				{
-						return self :: doGet ($s_Site, $s_Page);
-				}
+				$o_Http = new HttpRequest ($s_Domain, $s_Page);
+				$s_Body = http_build_query ($a_Variables);
 				
-				$conn     = new HttpRequest ($s_Site, $s_Page);
-				$s_Fields = http_build_query ($a_Fields);
+				/**
+				* Build headers
+				*/
+				$o_Http -> a_Headers [] = 'POST ' . $s_Page . ' HTTP/1.1';
+				$o_Http -> a_Headers [] = 'Host: ' . $s_Domain;
+				$o_Http -> a_Headers [] = 'Connection: close';		
+				$o_Http -> a_Headers [] = 'Content-Type: application/x-www-form-urlencoded';
+				$o_Http -> a_Headers [] = 'Content-Length: ' . strlen ($s_Body);
+				$o_Http -> s_Body       = $s_Body;
 				
-				// Fill headers
-				$conn -> a_Headers [] = "POST /" . $s_Page . " HTTP/1.1";
-				$conn -> a_Headers [] = "Host: " . $s_Site;
-				$conn -> a_Headers [] = "Connection: close";
-				$conn -> a_Headers [] = "Content-Type: application/x-www-form-urlencoded";
-				$conn -> a_Headers [] = "Content-Length: " . strlen ($s_Fields);
-				$conn -> s_Body       = $s_Fields;
-				
-				// Return object
-				return $conn;
+				return $o_Http;
 		}
 		
-		public function __construct ($s_Site, $s_Page)
+		/**
+		* Creates a new connection object and sets the address
+		*
+		* @param  string $s_Domain Domain where the page lives
+		* @param  string $s_Page   Page we want, can be left blank
+		* @return void
+		*/
+		public function __construct ($s_Domain, $s_Page = '/')
 		{
-				$this -> s_Site = $s_Site;
-				$this -> s_Page = $s_Page;
+				/**
+				* Create connection object and set callbacks
+				*/
+				$this -> o_Stream                = new Connection ($s_Domain, 80);
+				$this -> o_Stream -> onConnect   = array ($this, 'sendHeaders');
+				$this -> o_Stream -> onTerminate = array ($this, 'parseResult');
+				$this -> o_Stream -> onError     = &$this -> onFailure;
 				
-				// Create connection and set callbacks.
-				$this -> o_Connection                = new Connection ($s_Site, 80);
-				$this -> o_Connection -> onConnect   = array ($this, 'onConnect');
-				$this -> o_Connection -> onTerminate = array ($this, 'onTerminate');
-				$this -> o_Connection -> onError     = array ($this, 'onError');
+				/**
+				* Set internal variables
+				*/
+				$this -> a_Address = array ('domain' => $s_Domain,
+				                            'page'   => $s_Page
+										   );
 		}
 		
+		/**
+		* Clears the connection object
+		*
+		* @return void
+		*/
 		public function __destruct ()
 		{
-				$this -> o_Connection = null;
+				$this -> o_Stream = null;
 		}
 		
+		/**
+		* Adds a custom header to the list of headers that has to be sent
+		*
+		* @param string $s_Header Header to add
+		* @return void
+		*/
+		public function addHeader ($s_Header)
+		{
+				$this -> s_Headers [] = $s_Header;
+				return;
+		}
+		
+		/**
+		* Connects the transport endpoint
+		*
+		* @return bool
+		*/
 		public function execute ()
 		{
-				return $this -> o_Connection -> connect ();
+				if ($this -> o_Stream -> getStatus () > Status :: INIT)
+				{
+						return true;
+				}
+				
+				return $this -> o_Stream -> connect ();
 		}
 		
-		public function onConnect ($o_Connection, $i_connTime)
+		/**
+		* Called when connection to the domain has been made.
+		* Now we need to send the headers to the remote endpoint.
+		*
+		* @param  object $o_Connection Connection object
+		* @param  int    $i_connTime   Time connection was made
+		* @return void
+		*/
+		public function sendHeaders (Connection $o_Connection, $i_connTime)
 		{
-				// Build headers
-				$s_Headers   = implode ("\r\n", $this -> a_Headers);
-				$s_Headers .= "\r\n";
+				/**
+				* Build the headers that we want to send
+				*/
+				$s_String = implode ("\r\n", $this -> a_Headers) . "\r\n";
 				
+				/**
+				* If this is a POST request, also add the post data
+				*/
 				if (!empty ($this -> s_Body))
 				{
-						$s_Headers .= $this -> s_Body;
+						$s_String .= $this -> s_Body;
 				}
 				
-				// Send headers
-				$o_Connection -> writeBuffer -> appendBuffer ($s_Headers);
-				return true;
+				/**
+				* Add the headers to the write buffer
+				*/
+				$o_Connection -> writeBuffer -> appendBuffer ($s_String);
+				return;
 		}
 		
-		public function onError ($o_Connection, $i_Error)
+		/**
+		* Called when the connection was terminated.
+		* This means that all data has been received and
+		* the webserver closed the connection.
+		*
+		* @param  object $o_Connection Connection ojbect
+		* @param  int    $i_whoClosed  Who closed the connection?
+		* @return void
+		*/
+		public function parseResult (Connection $o_Connection, $i_whoClosed)
 		{
-				if (isset ($this -> onFailure) && is_callable ($this -> onFailure))
-				{
-						call_user_func_array ($this -> onFailure, array ($this, $i_Error));
-				}
-		}
-		
-		public function onTerminate ($o_Connection, $i_whoClosed)
-		{
-				// Request finished, filter headers from response.
-				$s_httpResponse = $o_Connection -> readBuffer -> getBuffer ();
-				$a_httpResponse = explode ("\r\n\r\n", $s_httpResponse);			
-				$a_httpResponse  = array ('headers' => $a_httpResponse [0],
-				                          'body'    => $a_httpResponse [1]);
-										 
+				/**
+				* Fetch the result and separate headers from body
+				*/
+				$a_httpResponse = explode ("\r\n\r\n", $o_Connection -> readBuffer -> getBuffer ());
+				$a_httpResponse = array ('headers' => $a_httpResponse [0],
+				                         'body'    => $a_httpResponse [1]
+										);
+										
+				/**
+				* Do a callback
+				*/
 				if (isset ($this -> onSuccess) && is_callable ($this -> onSuccess))
 				{
 						call_user_func_array ($this -> onSuccess, array ($this, $a_httpResponse));
 				}
 				
-				return true;
+				return;
 		}
 }

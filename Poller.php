@@ -32,14 +32,32 @@ use \RuntimeException;
 
 final class Poller
 {
-		// Instance of the poller
+		/**
+		* Static instance of the poller
+		*
+		* @var object
+		*/
 		private static $_instance = null;
 		
-		// List of all connections to monitor
+		/**
+		* List of connection objects registered
+		*
+		* @var array
+		*/
 		private $a_connList  = array ();
+		
+		/**
+		* List of resources registered
+		*
+		* @var array
+		*/
 		private $a_connSocks = array ();
 		
-		// Returns instance of this class
+		/**
+		* Returns instance of this class
+		*
+		* @return object
+		*/
 		public static function getInstance ()
 		{
 				if (empty (self ::  $_instance))
@@ -55,16 +73,34 @@ final class Poller
 		{
 		}		
 		
+		/**
+		* Checks whether the poller holds the connection
+		*
+		* @param  object $o_Conn Connection to check if added
+		* @return bool
+		*/
 		public function hasConnection (Connection $o_Conn)
 		{
 				return in_array ($o_Conn, $this -> a_connList);
 		}
 		
+		/**
+		* Returns amount of connections registered
+		*
+		* @return int
+		*/
 		public function getCount ()
 		{
 				return count ($this -> a_connList);
 		}
 		
+		/**
+		* Adds a connection to select
+		*
+		* @param  resource $r_Socket Resource to select ()
+		* @param  object   $o_Conn   Connection/Listening object
+		* @return bool
+		*/
 		public function addConnection ($r_Socket, $o_Conn)
 		{
 				if (!$o_Conn instanceof Connection && !$o_Conn instanceof Listening)
@@ -85,6 +121,12 @@ final class Poller
 				return true;
 		}
 		
+		/**
+		* Removes a connection from the list
+		*
+		* @param  object   $o_Conn   Connection/Listening object
+		* @return bool
+		*/
 		public function removeConnection ($o_Conn)
 		{
 				if (!$o_Conn instanceof Connection && !$o_Conn instanceof Listening)
@@ -104,6 +146,13 @@ final class Poller
 				return true;
 		}
 		
+		/**
+		* Polls all registered file-descriptors using the stream_select () function
+		* with a time-out of $f_blockTime
+		*
+		* @param  float $f_blockTime Amount of time we may block execution
+		* @return bool
+		*/
 		public function pollConnections ($f_blockTime = 0)
 		{
 				if ($this -> getCount () < 1)

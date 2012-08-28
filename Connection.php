@@ -32,31 +32,95 @@ use \InvalidArgumentException;
 
 class Connection
 {
-		// Global constants
+		/**
+		* Constant holding the path to the ssl certificate used for connections
+		*
+		* @const string
+		*/
 		const CERT_FILE_PATH     = './';
-		const CONN_MAX_TIME      = 5;
 		
-		// Connection details
+		/**
+		* Holds the stream resource created with stream_socket_client
+		*
+		* @var resource
+		*/
 		protected $r_Socket      = null;
+		
+		/**
+		* Current status of this socket.
+		* See Status.php
+		*
+		* @var int
+		*/
 		protected $i_Status      = 0;
+		
+		/**
+		* Remote address that this stream should connect to
+		* or is connected to.
+		*
+		* @var string
+		*/
 		private $s_rAddress      = null;
+		
+		/**
+		* Remote port that this stream should connect to
+		* or is connected to
+		*
+		* @var int
+		*/
 		private $s_rPort         = null;
+		
+		/**
+		* Is this connection using SSl?
+		*
+		* @var bool
+		*/
 		private $b_Secure        = false;
+		
+		/**
+		* Optional address to bind to
+		*
+		* @var string
+		*/
 		private $s_bindTo        = null;
+		
+		/**
+		* Timestamp of the time connection was made
+		*
+		* @var int
+		*/
 		private $i_timeConnected = 0;
 		
-		// Buffers for data
+		/**
+		* Buffers holding input/output data
+		*
+		* @var object
+		*/
 		private  $readBuffer     = null;
 		private  $writeBuffer    = null;
 		
-		// Callbacks
+		/**
+		* Callbacks that this object supports
+		*
+		* @var callable
+		*/
 		public  $onConnect       = null;
 		public  $onTerminate     = null;
 		public  $onRead          = null;
 		public  $onWrite         = null;
 		public  $onError         = null;
 		
-		// Create a new connection
+		/**
+		* Instantiates a new connection object
+		*
+		* @param  string         $s_Address     Address to connect to
+		* @param  int            $i_Port        Port to connect to
+		* @param  string         $s_bindAddress Optional address to bind to
+		* @param  bool           $b_Secure      Option to use SSL
+		* @throws LogicException We want to use SSL but OpenSSL is not loaded
+		* @throws LogicException Certificate not found
+		* @return void
+		*/
 		public function __construct ($s_Address, $i_Port, $s_bindAddress = null, $b_Secure = false)
 		{
 				// Resolve address
@@ -88,7 +152,12 @@ class Connection
 				$this -> writeBuffer = new StringBuffer ();
 		}
 		
-		// Destructor, closes the connection if it is still open
+		/**
+		* Closes the connection if it is still open
+		* otherwise clear the resource
+		*
+		* @return void
+		*/
 		public function __destruct ()
 		{
 				// Check if we are connected.
@@ -105,6 +174,13 @@ class Connection
 				$this -> writeBuffer = null;
 		}
 		
+		/**
+		* Returns the read or write buffer
+		*
+		* @pararm string         $s_Member Property to return
+		* @throws LogicException Attempt to access non-accessible property
+		* @return object
+		*/
 		public function __get ($s_Member)
 		{
 				switch ($s_Member)
@@ -119,50 +195,83 @@ class Connection
 								throw new LogicException ('Acces to "' . $s_Member . '" is not allowed.');
 				}
 		}
-		
-		// Returns address
-		public function __toString ()
-		{
-				return $this -> s_rAddress . ':' . $this -> i_rPort;
-		}
-		
-		// Returns the time we connected
+				
+		/**
+		* Returns the timestamp since we connected
+		*
+		* @return int
+		*/
 		public function getTimeConnected ()
 		{
 				return $this -> i_timeConnected;
 		}
 		
-		// Returns the current status
+		/**
+		* Returns current socket status
+		*
+		* @return int
+		*/
 		public function getStatus ()
 		{
 				return $this -> i_Status;
 		}
 				
-		// Returns whether the socket is connected or not
+		/**
+		* Returns whether this socket is connected
+		*
+		* @return bool
+		*/
 		public function isConnected ()
 		{
 				return ($this -> i_Status == Status :: CONNECTED);
 		}
 		
-		// Returns whether this socket is using a secure connection
+		/**
+		* Returns whether this stream is connected to the local machine
+		*
+		* @return bool
+		*/
+		public function isLocal ()
+		{
+				return stream_is_local ($this -> r_Socket);
+		}
+		
+		/**
+		* Returns whether this connection is secure
+		*
+		* @return bool
+		*/
 		public function isSecure ()
 		{
 				return $this -> b_Secure;
 		}
 		
-		// Checks if the socket has data pending to write
+		/**
+		* Checks if the socket has data pending to write
+		*
+		* @return bool
+		*/
 		public function hasWriteBuffer ()
 		{
 				return $this -> writeBuffer -> hasBuffer ();
 		}
 		
-		// Checks if the socket has data pending in its read buffer
+		/**
+		* Checks if the socket has data pending in its read buffer
+		*
+		* @return bool
+		*/
 		public function hasReadBuffer ()
 		{
 				return $this -> readBuffer -> hasBuffer ();
 		}
 				
-		// Queries the remote machine to get it's address
+		/**
+		* Queries the remote machine to get it's address
+		*
+		* @throws LogicException Stream is not connected
+		* @return string
+		*/
 		public function getRemoteAddress ()
 		{
 				if (!$this -> isConnected ())
@@ -173,7 +282,12 @@ class Connection
 				return stream_socket_get_name ($this -> r_Socket, true);
 		}
 		
-		// Queries the local machine to get it's address
+		/**
+		* Queries the local machine to get it's address
+		*
+		* @throws LogicException Stream is not connected
+		* @return string
+		*/
 		public function getLocalAddress ()
 		{
 				if (!$this -> isConnected ())
@@ -184,7 +298,12 @@ class Connection
 				return stream_socket_get_name ($this -> r_Socket, false);
 		}
 		
-		// Sets the encoding for the stream
+		/**
+		* Sets the encoding for the stream
+		*
+		* @param  string $s_Encoding Encoding to use, must by supported by the multibyte extension
+		* @return bool
+		*/
 		public function setEncoding ($s_Encoding)
 		{
 				if (!function_exists ('mb_list_encodings')  || !in_array ($s_Encoding, mb_list_encodings ()))
@@ -195,7 +314,12 @@ class Connection
 				return stream_encoding ($this -> r_Socket, $s_Encoding);
 		}
 		
-		// Sets the internal buffer's line endings to something else
+		/**
+		* Sets the internal buffer's line endings to something else
+		*
+		* @param  string $s_lineEnd Delimiter for lines
+		* @return true
+		*/
 		public function setLineEnding ($s_lineEnd)
 		{
 				$this -> readBuffer  -> setLineEnding ($s_lineEnd);
@@ -204,7 +328,12 @@ class Connection
 				return true;
 		}
 				
-		// Connects to the remote machine
+		/**
+		* Initiates a non-blocking connection attempt to the remote machine
+		* or checks if the connection has been established or not
+		*
+		* @return bool
+		*/
 		public function connect ()
 		{
 				if ($this -> isConnected ())
@@ -274,7 +403,12 @@ class Connection
 				return false;
 		}
 		
-		// Terminates the connection to the remote machine
+		/**
+		* Terminates the connection to the remote machine
+		* First tries to send any data if it has any left
+		*
+		* @return bool
+		*/
 		public function disconnect ()
 		{
 				if (!$this -> isConnected ())
@@ -301,8 +435,11 @@ class Connection
 				return true;
 		}
 		
-		// Attempts to write data from the write buffer to the remote machine
-		// Returns amount of bytes written or false
+		/**
+		* Attempts to write data from the write buffer to the remote machine
+		*
+		* @return bool
+		*/
 		public function write ()
 		{
 				if (!$this -> isConnected ())
@@ -325,8 +462,11 @@ class Connection
 				return true;
 		}
 		
-		// Read as much data from the stream as possible
-		// Returns amount of bytes written or false
+		/**
+		* Read as much data from the stream as possible
+		*
+		* @return bool
+		*/
 		public function read ()
 		{
 				if (!$this -> isConnected ())
@@ -361,7 +501,12 @@ class Connection
 				return true;
 		}
 		
-		// Private function to close the resource
+		/**
+		* Private function to close the resource
+		* and remove it from the stream poller
+		*
+		* @return void
+		*/
 		private function _forceClose ()
 		{
 				if (!is_resource ($this -> r_Socket))
@@ -377,9 +522,17 @@ class Connection
 				
 				// Remove from poller
 				Poller :: getInstance () -> removeConnection ($this); 
+				return;
 		}
 		
-		// Attempts to callback to someone
+		/**
+		* Private function to see if a callback has been set
+		* and if yes, call it
+		*
+		* @param string $s_Event Callback to call
+		* @param array  $a_Args  Arguments to pass along
+		* @return void
+		*/
 		private function _doCallback ($s_Event, array $a_Args = array ())
 		{
 				if (isset ($this -> $s_Event) && is_callable ($this -> $s_Event))
