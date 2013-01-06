@@ -1,0 +1,19 @@
+{
+		"name": "pannekoek/socket",
+		"description": "Library to make asynchrounous sockets possible in php.",
+		"keywords": ["asynchronous", "stream", "socket"],
+		
+		"require":
+		{
+				"php": ">=5.4",
+				"symfony/event-dispatcher": "dev-master",
+		},
+		
+		"autoload":
+		{
+				"psr-0":
+				{
+						"Pegasus\\Socket": "src/Pegasus/Socket"
+				}
+		}
+}
