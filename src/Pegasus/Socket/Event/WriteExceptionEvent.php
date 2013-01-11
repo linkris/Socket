@@ -32,6 +32,6 @@
 */
 namespace Pegasus\Socket\Event;
 
-class WriteExceptionEvent extends SocketEvent
+class WriteExceptionEvent extends ExceptionEvent
 {
 }
